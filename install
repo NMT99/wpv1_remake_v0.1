@@ -1,109 +1,99 @@
-#!/bin/bash
-
-# Change to home directory
+# 1 to 2
 cd ~/
 
-# LAMP1
-echo "Updating package lists..."
-sudo apt-get update
-sudo apt update
-
-echo "Installing Apache2..."
-sudo apt install -y apache2
-
-echo "Installing PHP and required modules..."
-sudo apt install -y php libapache2-mod-php php-mysql
-sudo apt install -y php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip
-
-echo "Installing MySQL server..."
-sudo apt install -y mysql-server
-
-echo "Enabling Apache2 and MySQL services..."
-sudo systemctl enable apache2
-sudo systemctl enable mysql
-
-echo "Starting Apache2 and MySQL services..."
-sudo systemctl start apache2
-sudo systemctl start mysql
-
-echo "Stopping and disabling UFW firewall..."
-sudo systemctl stop ufw
-sudo systemctl disable ufw
-
+# Install LAMP
+sudo apt-get update && sudo apt install -y apache2 php libapache2-mod-php php-mysql php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip mysql-server
+sudo systemctl enable apache2 mysql && sudo systemctl start apache2 mysql && sudo systemctl stop/disable ufw
 echo "LAMP was installed successfully!"
 
-# Apache2
-echo "Setting up Apache2 virtual host..."
+# Configure Apache2
+sudo chown -R $USER:$USER /etc/apache2/sites-available/ /var/www/$dnf1 /etc/apache2/mods-enabled
 
-# Set ownership of sites-available directory
-sudo chown -R $USER:$USER /etc/apache2/sites-available/
-
-# Prompt user for domain name folder
 read -p "Enter domain name folder: " dnf1
-
-# Create domain name folder
 sudo mkdir /var/www/$dnf1
-
-# Prompt user for server name
 read -p "Enter your ServerName: " sn1
+sudo bash -c "cat > /etc/apache2/sites-available/$sn1.conf << EOF
+<VirtualHost *:80>
+  ServerName $sn1
+  ServerAlias $USER$HOSTNAME
+  ServerAdmin $USER$HOSTNAME@localhost
+  DocumentRoot /var/www/$dnf1
+  ErrorLog ${APACHE_LOG_DIR}/error.log
+  CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+EOF"
+sudo tee /var/www/$dnf1/index.html <<< "$index_html" > /dev/null
+sudo a2dissite 000-default && sudo systemctl reload apache2 && sudo a2ensite $sn1.conf && sudo systemctl reload apache2
 
-# Create virtual host configuration file
-touch /etc/apache2/sites-available/$sn1.conf
-
-# Write virtual host configuration to file
-echo "<VirtualHost *:80>
-    ServerName $sn1
-    ServerAlias $USER$HOSTNAME
-    ServerAdmin $USER$HOSTNAME@localhost
-    DocumentRoot /var/www/$dnf1
-    ErrorLog ${APACHE_LOG_DIR}/error.log
-    CustomLog ${APACHE_LOG_DIR}/access.log combined
-</VirtualHost>" > /etc/apache2/sites-available/$sn1.conf
-
-# Set ownership of domain name folder
-sudo chown -R $USER:$USER /var/www/$dnf1
-
-# Create index.html file in domain name folder
-touch /var/www/$dnf1/index.html
-
-# Write content to index.html file
-echo "<html>
-  <head>
-    <title>WPby$USER$HOSTNAME</title>
-  </head>
-  <body>
-    <h1>Apache has been installed successfully!</h1>
-    <p>Have a good day! <strong>$USER$HOSTNAME</strong>.</p>
-  </body>
-</html>" > /var/www/$dnf1/index.html
-
-# Disable default site and reload Apache2 service
-sudo a2dissite 000-default
-sudo systemctl reload apache2
-
-# Enable new virtual host and reload Apache2 service
-sudo a2ensite $sn1.conf
-sudo systemctl reload apache2
-
-# Set server name in Apache2 configuration file
-echo "Setting server name in Apache2 configuration file..."
-sudo chown -R $USER:$USER /etc/apache2/
-sed -i "s/# nameserver./ServerName $sn1/" /etc/apache2/apache2.conf
-
-# Test Apache2 configuration
-echo "Testing Apache2 configuration..."
+# 3 to 5
+sudo chown -R $USER:$USER /etc/apache2/ /etc/apache2/mods-enabled /var/www/$dnf1
+sudo sed -i -e "s/#\?ServerName.*/ServerName $sn1/" -e 's/DirectoryIndex index.html/DirectoryIndex index.php index.html/' /etc/apache2/{apache2.conf,mods-enabled/dir.conf}
 sudo apache2ctl configtest
+sudo tee /var/www/$dnf1/info.php >/dev/null <<EOF
+<?php
+phpinfo();
+?>
+EOF
+echo "LAMP and PHP were installed successfully!"
+echo "Domain name folder: $dnf1"
+echo "ServerName: $sn1"
+echo "User: $USER"
+echo "Hostname: $HOSTNAME"
 
-# Update dir.conf file to prioritize index.php over index.html
-echo "Updating dir.conf to prioritize index.php over index.html..."
-sudo chown -R $USER:$USER /etc/apache2/mods-enabled/
-sed -i 's/index.html/index.php index.html/' /etc/apache2/mods-enabled/dir.conf
+# 6 to 8
+#mysql6
+read -p "Database name:" dn1
+read -p "Password for database:" p1
+sudo mysql -e "CREATE DATABASE $dn1"
+sudo mysql -e "CREATE USER '$USER'@'localhost' IDENTIFIED BY '$p1'"
+sudo mysql -e "GRANT ALL PRIVILEGES ON $dn1.* TO '$USER'@'localhost'"
+echo "Database $dn1 with password has been created"
+#wp7
+sudo tar -xzvf ~/wpv1/latest.tar.gz -C /var/www/$dnf1 --strip-components=1;
+sudo cp /var/www/$dnf1/wp-config-sample.php /var/www/$dnf1/wp-config.php;
+sudo mkdir /var/www/$dnf1/wp-content/upgrade;
+sudo chown -R www-data:www-data /var/www/$dnf1;
+sudo find /var/www/$dnf1/ -type d -exec chmod 755 {} \;
+sudo find /var/www/$dnf1/ -type f -exec chmod 644 {} \;
+#permission8
+echo "MySQL, WordPress and permissions were set successfully!"
 
-# Create info.php file in domain name folder to display PHP information
-echo "Creating info.php file in domain name folder to display PHP information..."
-sudo chown -R $USER:$USER /var/www/$dnf1/
-touch /var/www/$dnf1/info.php 
-echo "<?php phpinfo(); ?>" > /var/www/$dnf1/info.php 
+# 9 to 11
+# Define variables
+apache_conf="/etc/apache2/apache2.conf"
+apache_mods_enabled="/etc/apache2/mods-enabled"
+php_ini="/etc/php/7.4/apache2/php.ini"
+wordpress_dir="/var/www/$dnf1"
+wordpress_config="$wordpress_dir/wp-config.php"
 
-# Output variables for debugging purposes
-echo $dnf1 $sn1 $USER $HOSTNAME 
+# Create database and user
+read -p "Database name:" dn1
+read -p "Password for database:" p1
+sudo mysql -e "CREATE DATABASE $dn1"
+sudo mysql -e "CREATE USER '$USER'@'localhost' IDENTIFIED BY '$p1'"
+sudo mysql -e "GRANT ALL PRIVILEGES ON $dn1.* TO '$USER'@'localhost'"
+echo "Database $dn1 with password has been created"
+
+# Install WordPress
+tar -xzvf ~/wpv1/latest.tar.gz -C /tmp
+touch /tmp/wordpress/.htaccess
+sudo cp -a /tmp/wordpress/wp-config-sample.php "$wordpress_config"
+mkdir /tmp/wordpress/wp-content/upgrade
+sudo cp -a /tmp/wordpress/. "$wordpress_dir"
+sudo chown -R www-data:www-data "$wordpress_dir"
+
+# Configure WordPress
+sudo sed -i -e "s/database_name_here/$dn1/g; s/username_here/$USER/g; s/password_here/$p1/g" "$wordpress_config"
+sudo systemctl restart apache2
+
+# Configure PHP
+sudo chown -R $USER:$USER $(dirname "$php_ini")
+sudo sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 8M/; s/memory_limit = 128M/memory_limit = 256M/" "$php_ini"
+sudo systemctl restart apache2
+echo "Config php.ini success!"
+
+# Clean up
+sudo apt-get autoclean
+sudo apt-get clean
+sudo apt-get autoremove -y
+echo "Clean up completed"
