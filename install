@@ -1,0 +1,109 @@
+#!/bin/bash
+
+# Change to home directory
+cd ~/
+
+# LAMP1
+echo "Updating package lists..."
+sudo apt-get update
+sudo apt update
+
+echo "Installing Apache2..."
+sudo apt install -y apache2
+
+echo "Installing PHP and required modules..."
+sudo apt install -y php libapache2-mod-php php-mysql
+sudo apt install -y php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip
+
+echo "Installing MySQL server..."
+sudo apt install -y mysql-server
+
+echo "Enabling Apache2 and MySQL services..."
+sudo systemctl enable apache2
+sudo systemctl enable mysql
+
+echo "Starting Apache2 and MySQL services..."
+sudo systemctl start apache2
+sudo systemctl start mysql
+
+echo "Stopping and disabling UFW firewall..."
+sudo systemctl stop ufw
+sudo systemctl disable ufw
+
+echo "LAMP was installed successfully!"
+
+# Apache2
+echo "Setting up Apache2 virtual host..."
+
+# Set ownership of sites-available directory
+sudo chown -R $USER:$USER /etc/apache2/sites-available/
+
+# Prompt user for domain name folder
+read -p "Enter domain name folder: " dnf1
+
+# Create domain name folder
+sudo mkdir /var/www/$dnf1
+
+# Prompt user for server name
+read -p "Enter your ServerName: " sn1
+
+# Create virtual host configuration file
+touch /etc/apache2/sites-available/$sn1.conf
+
+# Write virtual host configuration to file
+echo "<VirtualHost *:80>
+    ServerName $sn1
+    ServerAlias $USER$HOSTNAME
+    ServerAdmin $USER$HOSTNAME@localhost
+    DocumentRoot /var/www/$dnf1
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>" > /etc/apache2/sites-available/$sn1.conf
+
+# Set ownership of domain name folder
+sudo chown -R $USER:$USER /var/www/$dnf1
+
+# Create index.html file in domain name folder
+touch /var/www/$dnf1/index.html
+
+# Write content to index.html file
+echo "<html>
+  <head>
+    <title>WPby$USER$HOSTNAME</title>
+  </head>
+  <body>
+    <h1>Apache has been installed successfully!</h1>
+    <p>Have a good day! <strong>$USER$HOSTNAME</strong>.</p>
+  </body>
+</html>" > /var/www/$dnf1/index.html
+
+# Disable default site and reload Apache2 service
+sudo a2dissite 000-default
+sudo systemctl reload apache2
+
+# Enable new virtual host and reload Apache2 service
+sudo a2ensite $sn1.conf
+sudo systemctl reload apache2
+
+# Set server name in Apache2 configuration file
+echo "Setting server name in Apache2 configuration file..."
+sudo chown -R $USER:$USER /etc/apache2/
+sed -i "s/# nameserver./ServerName $sn1/" /etc/apache2/apache2.conf
+
+# Test Apache2 configuration
+echo "Testing Apache2 configuration..."
+sudo apache2ctl configtest
+
+# Update dir.conf file to prioritize index.php over index.html
+echo "Updating dir.conf to prioritize index.php over index.html..."
+sudo chown -R $USER:$USER /etc/apache2/mods-enabled/
+sed -i 's/index.html/index.php index.html/' /etc/apache2/mods-enabled/dir.conf
+
+# Create info.php file in domain name folder to display PHP information
+echo "Creating info.php file in domain name folder to display PHP information..."
+sudo chown -R $USER:$USER /var/www/$dnf1/
+touch /var/www/$dnf1/info.php 
+echo "<?php phpinfo(); ?>" > /var/www/$dnf1/info.php 
+
+# Output variables for debugging purposes
+echo $dnf1 $sn1 $USER $HOSTNAME 
