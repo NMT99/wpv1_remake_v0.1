@@ -1,100 +1,111 @@
-# 1 to 2
-cd ~/
 {
-# Install LAMP
-sudo apt-get update && sudo apt install -y apache2 php libapache2-mod-php php-mysql php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip mysql-server
-sudo systemctl enable apache2 mysql && sudo systemctl start apache2 mysql && sudo systemctl stop/disable ufw
-echo "LAMP was installed successfully!"
+cd ~/
+#LAMP1
+sudo apt-get update
+sudo apt update
+sudo apt install -y apache2 php libapache2-mod-php php-mysql php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip mysql-server
+sudo systemctl enable apache2
+sudo systemctl enable mysql
+sudo systemctl start apache2
+sudo systemctl start mysql
+sudo systemctl stop ufw
+sudo systemctl disable ufw
 
-# Configure Apache2
-sudo chown -R $USER:$USER /etc/apache2/sites-available/ /var/www/$dnf1 /etc/apache2/mods-enabled
+echo "LAMP WAS INSTALL SUCCESSFULLY!"
 
+#Apache2
+sudo chown -R $USER:$USER /etc/apache2/sites-available/
 read -p "Enter domain name folder: " dnf1
 sudo mkdir /var/www/$dnf1
+
 read -p "Enter your ServerName: " sn1
-sudo bash -c "cat > /etc/apache2/sites-available/$sn1.conf << EOF
-<VirtualHost *:80>
-  ServerName $sn1
-  ServerAlias $USER$HOSTNAME
-  ServerAdmin $USER$HOSTNAME@localhost
-  DocumentRoot /var/www/$dnf1
-  ErrorLog ${APACHE_LOG_DIR}/error.log
-  CustomLog ${APACHE_LOG_DIR}/access.log combined
-</VirtualHost>
-EOF"
-sudo tee /var/www/$dnf1/index.html <<< "$index_html" > /dev/null
-sudo a2dissite 000-default && sudo systemctl reload apache2 && sudo a2ensite $sn1.conf && sudo systemctl reload apache2
+touch /etc/apache2/sites-available/$sn1.conf
 
-# 3 to 5
-sudo chown -R $USER:$USER /etc/apache2/ /etc/apache2/mods-enabled /var/www/$dnf1
-sudo sed -i -e "s/#\?ServerName.*/ServerName $sn1/" -e 's/DirectoryIndex index.html/DirectoryIndex index.php index.html/' /etc/apache2/{apache2.conf,mods-enabled/dir.conf}
+echo "<VirtualHost *:80>
+    ServerName $sn1
+    ServerAlias $USER$HOSTNAME
+    ServerAdmin $USER$HOSTNAME@localhost
+    DocumentRoot /var/www/$dnf1
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>" > /etc/apache2/sites-available/$sn1.conf
+
+sudo chown -R $USER:$USER /var/www/$dnf1
+
+touch /var/www/$dnf1/index.html
+
+echo "<html>
+  <head>
+    <title>WPby$USER$HOSTNAME</title>
+  </head>
+  <body>
+    <h1>Apache has been installed successfully!</h1>
+    <p>Have a good day! <strong>$USER$HOSTNAME</strong>.</p>
+  </body>
+</html>" > /var/www/$dnf1/index.html
+
+sudo a2dissite 000-default
+sudo systemctl reload apache2
+sudo a2ensite $sn1.conf
+sudo systemctl reload apache2
+
+sudo chown -R $USER:$USER /etc/apache2/
+sed -i "s/# nameserver./ServerName $sn1/" /etc/apache2/apache2.conf
 sudo apache2ctl configtest
-sudo tee /var/www/$dnf1/info.php >/dev/null <<EOF
-<?php
+
+#dirconf4
+sudo chown -R $USER:$USER /etc/apache2/mods-enabled
+sed -i 's/index.html/index.php index.html/' /etc/apache2/mods-enabled/dir.conf
+
+#info php5
+sudo chown -R $USER:$USER /var/www/$dnf1
+touch /var/www/$dnf1/info.php
+
+echo "<?php
 phpinfo();
-?>
-EOF
-echo "LAMP and PHP were installed successfully!"
-echo "Domain name folder: $dnf1"
-echo "ServerName: $sn1"
-echo "User: $USER"
-echo "Hostname: $HOSTNAME"
+?>" > /var/www/$dnf1/info.php
 
-# 6 to 8
+echo $dnf1 $sn1 $USER $HOSTNAME
+echo "PHP WAS INSTALL SUCCESSFULLY!"
+
 #mysql6
-read -p "Database name:" dn1
-read -p "Password for database:" p1
+read -p "Database name: " dn1
+read -p "Password for database: " p1
 sudo mysql -e "CREATE DATABASE $dn1"
 sudo mysql -e "CREATE USER '$USER'@'localhost' IDENTIFIED BY '$p1'"
 sudo mysql -e "GRANT ALL PRIVILEGES ON $dn1.* TO '$USER'@'localhost'"
 echo "Database $dn1 with password has been created"
+
 #wp7
-sudo tar -xzvf ~/wpv1/latest.tar.gz -C /var/www/$dnf1 --strip-components=1;
-sudo cp /var/www/$dnf1/wp-config-sample.php /var/www/$dnf1/wp-config.php;
-sudo mkdir /var/www/$dnf1/wp-content/upgrade;
-sudo chown -R www-data:www-data /var/www/$dnf1;
-sudo find /var/www/$dnf1/ -type d -exec chmod 755 {} \;
-sudo find /var/www/$dnf1/ -type f -exec chmod 644 {} \;
-#permission8
-echo "MySQL, WordPress and permissions were set successfully!"
-
-# 9 to 11
-# Define variables
-apache_conf="/etc/apache2/apache2.conf"
-apache_mods_enabled="/etc/apache2/mods-enabled"
-php_ini="/etc/php/7.4/apache2/php.ini"
-wordpress_dir="/var/www/$dnf1"
-wordpress_config="$wordpress_dir/wp-config.php"
-
-# Create database and user
-read -p "Database name:" dn1
-read -p "Password for database:" p1
-sudo mysql -e "CREATE DATABASE $dn1"
-sudo mysql -e "CREATE USER '$USER'@'localhost' IDENTIFIED BY '$p1'"
-sudo mysql -e "GRANT ALL PRIVILEGES ON $dn1.* TO '$USER'@'localhost'"
-echo "Database $dn1 with password has been created"
-
-# Install WordPress
 tar -xzvf ~/wpv1/latest.tar.gz -C /tmp
 touch /tmp/wordpress/.htaccess
-sudo cp -a /tmp/wordpress/wp-config-sample.php "$wordpress_config"
+sudo cp -a /tmp/wordpress/wp-config-sample.php /tmp/wordpress/wp-config.php
 mkdir /tmp/wordpress/wp-content/upgrade
-sudo cp -a /tmp/wordpress/. "$wordpress_dir"
-sudo chown -R www-data:www-data "$wordpress_dir"
+sudo cp -a /tmp/wordpress/. /var/www/$dnf1
 
-# Configure WordPress
-sudo sed -i -e "s/database_name_here/$dn1/g; s/username_here/$USER/g; s/password_here/$p1/g" "$wordpress_config"
-sudo systemctl restart apache2
+#permision8
+sudo chown -R www-data:www-data /var/www/$dnf1
 
-# Configure PHP
-sudo chown -R $USER:$USER $(dirname "$php_ini")
-sudo sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 8M/; s/memory_limit = 128M/memory_limit = 256M/" "$php_ini"
-sudo systemctl restart apache2
+#sed9
+sudo sed -i -e "s/database_name_here/$dn1/g" /var/www/$dnf1/wp-config.php
+sudo sed -i -e "s/username_here/$USER/g" /var/www/$dnf1/wp-config.php
+sudo sed -i -e "s/password_here/$p1/g" /var/www/$dnf1/wp-config.php
+sudo systemctl reload apache2
+
+#10 config php.ini
+sudo chown -R $USER:$USER /etc/php/7.4/apache2/
+sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 8M/" /etc/php/7.4/apache2/php.ini
+sed -i "s/memory_limit = 128M/memory_limit = 256M/" /etc/php/7.4/apache2/php.ini
+sudo systemctl reload apache2
+
 echo "Config php.ini success!"
+echo "WORDPRESS WAS INSTALL SUCCESSFULLY! GO TO IP BELOW TO LOG INTO WORDPRESS!"
+ip a
 
-# Clean up
+#11 clean up
 sudo apt-get autoclean
 sudo apt-get clean
 sudo apt-get autoremove -y
+
 echo "Clean up completed"
 }
