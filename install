@@ -1,6 +1,6 @@
 # 1 to 2
 cd ~/
-
+{
 # Install LAMP
 sudo apt-get update && sudo apt install -y apache2 php libapache2-mod-php php-mysql php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip mysql-server
 sudo systemctl enable apache2 mysql && sudo systemctl start apache2 mysql && sudo systemctl stop/disable ufw
@@ -97,3 +97,4 @@ sudo apt-get autoclean
 sudo apt-get clean
 sudo apt-get autoremove -y
 echo "Clean up completed"
+}
